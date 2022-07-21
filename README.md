@@ -3,7 +3,6 @@ This script is originated from this [askubuntu.com post](https://askubuntu.com/q
 
 ### Requirements
 This script is using python3 syntax so python3 is required to run it. The script is using **wmctrl** and **ps** utilities and these should installed by default on any system. If they are not installed, on Ubuntu or Debian use
-
 ```
 sudo apt-get install wmctrl procps
 ```
@@ -21,7 +20,7 @@ To save window layouts first position your windows as you like them, then run
 ``` 
 python3 savelayout.py -save
 ```
-To restore layout, run
+To restore layout, run with -load or without any parameters
 
 ```
 python3 savelayout.py -load

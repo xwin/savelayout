@@ -40,8 +40,8 @@ def read_windows():
     w_list =  [l.split() for l in get("wmctrl -lpG").splitlines()]
     relevant = [[w[2],w[1],[int(n) for n in w[3:7]]] for w in w_list if check_window(w[0]) == True]
     for i, r in enumerate(relevant):
-        r[2][0] = r[2][0] + xof #adjust to account for VM
-        r[2][1] = r[2][1] + yof #adjust to account for VM
+        r[2][0] = r[2][0] + xof #adjust to account for WM
+        r[2][1] = r[2][1] + yof #adjust to account for WM
         relevant[i] = app(r[0])+" "+r[1]+" "+str((" ").join([str(n) for n in r[2]]))
     with open(wfile, "wt") as out:
         for l in relevant:
@@ -83,11 +83,12 @@ def open_appwindow(app, loc):
         t = t+1
 
 def reposition_window(w_id, loc):
-    x,y,w,h = loc
+    x,y,w,h,d = loc
     cmd1 = "wmctrl -ir "+w_id+" -b remove,maximized_horz"
     cmd2 = "wmctrl -ir "+w_id+" -b remove,maximized_vert"
     cmd3 = "wmctrl -ir "+w_id+" -e 0,"+x+","+y+","+w+","+h
-    for cmd in [cmd1, cmd2, cmd3]:
+    cmd4 = "wmctrl -ir "+w_id+" -t "+d
+    for cmd in [cmd1, cmd2, cmd3, cmd4]:
         subprocess.call(["/bin/bash", "-c", cmd])
 
 def run_remembered():
@@ -98,7 +99,7 @@ def run_remembered():
         for l in lines:
             l[2] = str(int(l[2]) - res[0]); l[3] = str(int(l[3]) - res[1])
             apps = [a[0] for a in running]
-            location = l[2:6]
+            location = l[2:6] + [l[1]]
             if l[0] in apps :
                 idx = apps.index(l[0])
                 reposition_window(running[idx][1], location)
@@ -126,12 +127,12 @@ def do_calbration():
     time.sleep(1)
     w_list =  [l.split() for l in get("wmctrl -lpG").splitlines()]
     w_info = [[w[0],w[2],w[1],[n for n in w[3:7]]] for w in w_list if (w[8] == "xmessage")]
-    pos = w_info[0][3]
+    pos = w_info[0][3] + [u'0']
     reposition_window(w_info[0][0], pos)
     w_list =  [l.split() for l in get("wmctrl -lpG").splitlines()]
     w_after = [[w[0],w[2],w[1],[n for n in w[3:7]]] for w in w_list if (w[8] == "xmessage")]
     stop_calibration_window(calibw)
-    pos_after = w_after[0][3]
+    pos_after = w_after[0][3] + [u'0']
     print("xof=", int(pos[0])-int(pos_after[0]))
     print("yof=", int(pos[1])-int(pos_after[1]))    
 

@@ -1,5 +1,5 @@
 ## Save and restore window layout
-This script is originated from this [askubuntu.com post](https://askubuntu.com/questions/193569/is-there-a-way-to-store-the-current-desktop-layout). Calibration function was added to determine offsets to correct for window manger elements. The offsets are applied when saving windows so the restored windows end up in the same position. The ability to save desktop number is also added although it is not yet restored.
+This script is originated from this [askubuntu.com post](https://askubuntu.com/questions/193569/is-there-a-way-to-store-the-current-desktop-layout). Calibration function was added to determine offsets to correct for window manger elements. The offsets are applied when saving windows so the restored windows end up in the same position. Added the ability to save and restore desktop number.
 
 ### Requirements
 This script is using python3 syntax so python3 is required to run it. The script is using **wmctrl** and **ps** utilities and these should installed by default on any system. If they are not installed, on Ubuntu or Debian use

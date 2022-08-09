@@ -1,6 +1,8 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # This script is originated from
 # https://askubuntu.com/questions/193569/is-there-a-way-to-store-the-current-desktop-layout
+
+from __future__ import print_function
 import subprocess
 import os
 import sys

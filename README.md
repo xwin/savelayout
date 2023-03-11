@@ -14,8 +14,8 @@ python3 savelayout.py -calibrate
 xof= -2
 yof= -52
 ```
-Next change the lines at the top of the script to set them to the printed offsets. The utility is ready for use.  
-To save window layouts first position your windows as you like them, then run
+This will perform calibration run and save calibration string into the configuration file. All of the saved window positions will be erased from the configuration file.<br>
+To save window placements first position your windows as you like them, then run
 
 ``` 
 python3 savelayout.py -save
@@ -25,3 +25,11 @@ To restore layout, run with -load or without any parameters
 ```
 python3 savelayout.py -load
 ```
+The utility should be able to read the configuration file without the calibration string. To save the calibration string run:
+
+```
+python3 savelayout.py -load
+python3 savelayout.py -calibrate
+python3 savelayout.py -save
+```
+

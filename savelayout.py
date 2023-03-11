@@ -38,6 +38,18 @@ def get_res():
 app = lambda pid: subprocess.check_output(["ps", "-q",  pid, "-o", "comm="]).decode("utf-8").strip()
 
 def read_windows():
+    global xof,yof
+    # read saved calibration constants
+    try:
+        lines = [l.split() for l in open(wfile).read().splitlines()]
+        calibr = lines.pop()
+        if (calibr[0] == 'calibration'):
+            xof = int(calibr[1])
+            yof = int(calibr[2])
+        else:
+            lines.append(calibr)
+    except FileNotFoundError:
+        pass
     res = get_res()
     w_list =  [l.split() for l in get("wmctrl -lpG").splitlines()]
     relevant = [[w[2],w[1],[int(n) for n in w[3:7]]] for w in w_list if check_window(w[0]) == True]
@@ -48,7 +60,9 @@ def read_windows():
     with open(wfile, "wt") as out:
         for l in relevant:
             out.write(l+"\n")
-
+        l = "calibration " + str(xof) + " " + str(yof)
+        out.write(l+"\n")
+        
 def read_window_ids():
     w_list =  [l.split() for l in get("wmctrl -lpG").splitlines()]
     relevant = [[w[2], w[0]] for w in w_list if check_window(w[0]) == True]
@@ -86,18 +100,26 @@ def open_appwindow(app, loc):
 
 def reposition_window(w_id, loc):
     x,y,w,h,d = loc
-    cmd1 = "wmctrl -ir "+w_id+" -b remove,maximized_horz"
-    cmd2 = "wmctrl -ir "+w_id+" -b remove,maximized_vert"
-    cmd3 = "wmctrl -ir "+w_id+" -e 0,"+x+","+y+","+w+","+h
-    cmd4 = "wmctrl -ir "+w_id+" -t "+d
-    for cmd in [cmd1, cmd2, cmd3, cmd4]:
+    cmds = list()
+    cmds.append("wmctrl -ir "+w_id+" -b remove,maximized_horz")
+    cmds.append("wmctrl -ir "+w_id+" -b remove,maximized_vert")
+    cmds.append("wmctrl -ir "+w_id+" -e 0,"+x+","+y+","+w+","+h)
+    cmds.append("wmctrl -ir "+w_id+" -t "+d)
+    for cmd in cmds:
         subprocess.call(["/bin/bash", "-c", cmd])
 
 def run_remembered():
+    global xof, yof
     res = get_res()[1]
     running = read_window_ids()
     try:
         lines = [l.split() for l in open(wfile).read().splitlines()]
+        calibr = lines.pop()
+        if (calibr[0] == 'calibration'):
+            xof = int(calibr[1])
+            yof = int(calibr[2])
+        else:
+            lines.append(calibr)            
         for l in lines:
             l[2] = str(int(l[2]) - res[0]); l[3] = str(int(l[3]) - res[1])
             apps = [a[0] for a in running]
@@ -125,6 +147,7 @@ def stop_calibration_window(calibw):
     calibw.terminate()
 
 def do_calbration():
+    global xof, yof
     calibw = start_calibration_window()
     time.sleep(1)
     w_list =  [l.split() for l in get("wmctrl -lpG").splitlines()]
@@ -135,8 +158,13 @@ def do_calbration():
     w_after = [[w[0],w[2],w[1],[n for n in w[3:7]]] for w in w_list if (w[8] == "xmessage")]
     stop_calibration_window(calibw)
     pos_after = w_after[0][3] + [u'0']
-    print("xof=", int(pos[0])-int(pos_after[0]))
-    print("yof=", int(pos[1])-int(pos_after[1]))    
+    xof = int(pos[0])-int(pos_after[0])
+    yof = int(pos[1])-int(pos_after[1])
+    print("xof=", xof)
+    print("yof=", yof)    
+    with open(wfile, "wt") as out:
+        l = "calibration " + str(xof) + " " + str(yof)
+        out.write(l+"\n")
 
 def main():    
     if (len(sys.argv) < 1) :

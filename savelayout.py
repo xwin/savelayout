@@ -39,6 +39,16 @@ app = lambda pid: subprocess.check_output(["ps", "-q",  pid, "-o", "comm="]).dec
 
 def read_windows():
     global xof,yof
+    w_list =  [l.split() for l in get("wmctrl -lpG").splitlines()]
+    relevant = [[w[2],w[1],[int(n) for n in w[3:7]]] for w in w_list if check_window(w[0]) == True]
+    for i, r in enumerate(relevant):
+        r[2][0] = r[2][0] + xof #adjust to account for WM
+        r[2][1] = r[2][1] + yof #adjust to account for WM
+        relevant[i] = app(r[0])+" "+r[1]+" "+str((" ").join([str(n) for n in r[2]]))
+    return relevant
+
+def read_calibration():
+    global xof,yof
     # read saved calibration constants
     try:
         lines = [l.split() for l in open(wfile).read().splitlines()]
@@ -50,19 +60,14 @@ def read_windows():
             lines.append(calibr)
     except FileNotFoundError:
         pass
-    res = get_res()
-    w_list =  [l.split() for l in get("wmctrl -lpG").splitlines()]
-    relevant = [[w[2],w[1],[int(n) for n in w[3:7]]] for w in w_list if check_window(w[0]) == True]
-    for i, r in enumerate(relevant):
-        r[2][0] = r[2][0] + xof #adjust to account for WM
-        r[2][1] = r[2][1] + yof #adjust to account for WM
-        relevant[i] = app(r[0])+" "+r[1]+" "+str((" ").join([str(n) for n in r[2]]))
+    
+def save_positions(wfile, winlist):
     with open(wfile, "wt") as out:
-        for l in relevant:
+        for l in winlist:
             out.write(l+"\n")
         l = "calibration " + str(xof) + " " + str(yof)
         out.write(l+"\n")
-        
+    
 def read_window_ids():
     w_list =  [l.split() for l in get("wmctrl -lpG").splitlines()]
     relevant = [[w[2], w[0]] for w in w_list if check_window(w[0]) == True]
@@ -178,7 +183,9 @@ def main():
     if (arg == "-load") :
         run_remembered()
     elif arg == "-save":
-        read_windows()
+        read_calibration()
+        wlist = read_windows()
+        save_positions(wfile, wlist)
     elif arg == "-calibrate":
         do_calbration()
     else :

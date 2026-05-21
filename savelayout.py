@@ -31,8 +31,14 @@ def get_res():
     xr = subprocess.check_output(["xrandr"]).decode("utf-8").split()
     pos = xr.index("current")
     res = [int(xr[pos+1]), int(xr[pos+3].replace(",", "") )]
-    vp_data = subprocess.check_output(["wmctrl", "-d"]).decode("utf-8").split()
-    curr_vpdata = [int(n) for n in vp_data[5].split(",")]
+    lines = subprocess.check_output(["wmctrl", "-d"]).decode("utf-8").splitlines()
+    curr_vpdata = [0, 0]
+    for line in lines:
+        parts = line.split()
+        if len(parts) >= 6 and parts[1] == "*":
+            if parts[5] != "N/A":
+                curr_vpdata = [int(n) for n in parts[5].split(",")]
+            break
     return [res, curr_vpdata]
 
 app = lambda pid: subprocess.check_output(["ps", "-q",  pid, "-o", "comm="]).decode("utf-8").strip()

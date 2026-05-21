@@ -41,7 +41,11 @@ def get_res():
             break
     return [res, curr_vpdata]
 
-app = lambda pid: subprocess.check_output(["ps", "-q",  pid, "-o", "comm="]).decode("utf-8").strip()
+def app(pid):
+    try:
+        return subprocess.check_output(["ps", "-q", pid, "-o", "comm="]).decode("utf-8").strip()
+    except subprocess.CalledProcessError:
+        return "unknown"
 
 def read_windows():
     global xof,yof
@@ -57,14 +61,16 @@ def read_calibration():
     global xof,yof
     # read saved calibration constants
     try:
-        lines = [l.split() for l in open(wfile).read().splitlines()]
-        calibr = lines.pop()
-        if (calibr[0] == 'calibration'):
-            xof = int(calibr[1])
-            yof = int(calibr[2])
-        else:
-            lines.append(calibr)
-    except FileNotFoundError:
+        with open(wfile, "r") as f:
+            lines = [l.split() for l in f.read().splitlines()]
+        if lines:
+            calibr = lines.pop()
+            if (calibr[0] == 'calibration'):
+                xof = int(calibr[1])
+                yof = int(calibr[2])
+            else:
+                lines.append(calibr)
+    except (IOError, OSError):
         pass
     
 def save_positions(wfile, winlist):
@@ -124,24 +130,26 @@ def run_remembered():
     res = get_res()[1]
     running = read_window_ids()
     try:
-        lines = [l.split() for l in open(wfile).read().splitlines()]
-        calibr = lines.pop()
-        if (calibr[0] == 'calibration'):
-            xof = int(calibr[1])
-            yof = int(calibr[2])
-        else:
-            lines.append(calibr)            
-        for l in lines:
-            l[2] = str(int(l[2]) - res[0]); l[3] = str(int(l[3]) - res[1])
-            apps = [a[0] for a in running]
-            location = l[2:6] + [l[1]]
-            if l[0] in apps :
-                idx = apps.index(l[0])
-                reposition_window(running[idx][1], location)
-                running.pop(idx)
-            else :
-                open_appwindow(l[0], location)
-    except FileNotFoundError:
+        with open(wfile, "r") as f:
+            lines = [l.split() for l in f.read().splitlines()]
+        if lines:
+            calibr = lines.pop()
+            if (calibr[0] == 'calibration'):
+                xof = int(calibr[1])
+                yof = int(calibr[2])
+            else:
+                lines.append(calibr)            
+            for l in lines:
+                l[2] = str(int(l[2]) - res[0]); l[3] = str(int(l[3]) - res[1])
+                apps = [a[0] for a in running]
+                location = l[2:6] + [l[1]]
+                if l[0] in apps :
+                    idx = apps.index(l[0])
+                    reposition_window(running[idx][1], location)
+                    running.pop(idx)
+                else :
+                    open_appwindow(l[0], location)
+    except (IOError, OSError):
         pass
 
 def show_help():

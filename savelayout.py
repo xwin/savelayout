@@ -227,31 +227,61 @@ def show_help():
     print("       -calibrate : display and calculate calibration offsets")
 
 def start_calibration_window():
-    calibw = subprocess.Popen(["xmessage", "Calibration"])
+    calibw = subprocess.Popen(["xmessage", "-title", "savelayout_calib", "Calibration"])
     return calibw
 
 def stop_calibration_window(calibw):
-    calibw.terminate()
+    try:
+        calibw.terminate()
+    except OSError:
+        pass
 
-def do_calbration():
+def find_calib_window(wids=None):
+    w_list = [l.split() for l in run_cmd(["wmctrl", "-lpG"]).splitlines() if l.strip()]
+    for w in w_list:
+        if len(w) >= 7:
+            if wids and w[0] in wids:
+                return w
+            if len(w) >= 9 and "savelayout_calib" in " ".join(w[8:]):
+                return w
+            if len(w) >= 9 and w[8] == "xmessage":
+                return w
+    return None
+
+def do_calibration():
     global xof, yof
+    before_wids = set(l.split()[0] for l in run_cmd(["wmctrl", "-lpG"]).splitlines() if l.strip())
     calibw = start_calibration_window()
     time.sleep(1)
-    w_list =  [l.split() for l in get("wmctrl -lpG").splitlines()]
-    w_info = [[w[0],w[2],w[1],[n for n in w[3:7]]] for w in w_list if (w[8] == "xmessage")]
-    pos = w_info[0][3] + [u'0']
-    reposition_window(w_info[0][0], pos)
-    w_list =  [l.split() for l in get("wmctrl -lpG").splitlines()]
-    w_after = [[w[0],w[2],w[1],[n for n in w[3:7]]] for w in w_list if (w[8] == "xmessage")]
+
+    lines = [l.split() for l in run_cmd(["wmctrl", "-lpG"]).splitlines() if l.strip()]
+    new_wids = set(w[0] for w in lines) - before_wids
+
+    calib_win = find_calib_window(new_wids)
+    if not calib_win:
+        stop_calibration_window(calibw)
+        print("Error: Could not locate calibration window.")
+        return
+
+    wid = calib_win[0]
+    pos = calib_win[3:7] + [u'0']
+    reposition_window(wid, pos)
+    time.sleep(0.2)
+
+    after_win = find_calib_window(set([wid]))
     stop_calibration_window(calibw)
-    pos_after = w_after[0][3] + [u'0']
-    xof = int(pos[0])-int(pos_after[0])
-    yof = int(pos[1])-int(pos_after[1])
+    if not after_win:
+        print("Error: Calibration window lost after reposition.")
+        return
+
+    pos_after = after_win[3:7] + [u'0']
+    xof = int(pos[0]) - int(pos_after[0])
+    yof = int(pos[1]) - int(pos_after[1])
     print("xof=", xof)
     print("yof=", yof)    
     with open(wfile, "wt") as out:
         l = "calibration " + str(xof) + " " + str(yof)
-        out.write(l+"\n")
+        out.write(l + "\n")
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Save and restore desktop window layout.")
@@ -268,7 +298,7 @@ def main():
         wlist = read_windows()
         save_positions(wfile, wlist)
     elif args.calibrate:
-        do_calbration()
+        do_calibration()
     else:
         # Default behavior: load
         run_remembered()

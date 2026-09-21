@@ -26,9 +26,6 @@ def run_cmd(cmd):
     except (subprocess.CalledProcessError, OSError):
         return ""
 
-def get(command):
-    return run_cmd(command)
-
 def check_window(w_id):
     w_type = run_cmd(["xprop", "-id", str(w_id), "_NET_WM_WINDOW_TYPE"])
     if " _NET_WM_WINDOW_TYPE_NORMAL" in w_type:
@@ -56,9 +53,6 @@ def get_viewport():
                 return [int(n) for n in parts[5].split(",")]
             break
     return [0, 0]
-
-def get_res():
-    return [[0, 0], get_viewport()]
 
 def app(pid):
     try:
@@ -219,12 +213,6 @@ def run_remembered():
                     open_appwindow(l[0], location, states)
     except (IOError, OSError):
         pass
-
-def show_help():
-    print("usage: savelayout.py [-save | -load | -calibrate]")
-    print("       -save : record window positions")
-    print("       -load : restore window positions (default)")
-    print("       -calibrate : display and calculate calibration offsets")
 
 def start_calibration_window():
     calibw = subprocess.Popen(["xmessage", "-title", "savelayout_calib", "Calibration"])

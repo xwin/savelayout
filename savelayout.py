@@ -43,8 +43,13 @@ def get_res():
 
 def app(pid):
     try:
-        return subprocess.check_output(["ps", "-q", pid, "-o", "comm="]).decode("utf-8").strip()
-    except subprocess.CalledProcessError:
+        with open("/proc/" + str(pid) + "/comm", "r") as f:
+            return f.read().strip()
+    except (IOError, OSError):
+        pass
+    try:
+        return subprocess.check_output(["ps", "-q", str(pid), "-o", "comm="]).decode("utf-8").strip()
+    except Exception:
         return "unknown"
 
 def read_windows():
@@ -87,43 +92,73 @@ def read_window_ids():
         relevant[i][0] = app(r[0])
     return relevant
 
-def open_appwindow(app, loc):
-    ws1 = get("wmctrl -lp"); t = 0
-    # fix command for certain apps that open in new tab by default
-    if app == "gedit":
-        option = " --new-window"
-    else:
-        option = ""
-    # fix command if process name and command to run are different
-    if "gnome-terminal" in app:
-        app = "gnome-terminal"
-    elif "chrome" in app:
-        app = "/usr/bin/google-chrome-stable"
+def proc_matches(pid, app_name):
+    if not pid or pid in ("0", "-1"):
+        return False
+    try:
+        with open("/proc/" + str(pid) + "/comm", "r") as f:
+            comm = f.read().strip()
+            if app_name in comm or comm in app_name:
+                return True
+    except (IOError, OSError):
+        pass
+    try:
+        with open("/proc/" + str(pid) + "/cmdline", "r") as f:
+            cmdline = f.read().replace('\0', ' ')
+            if app_name in cmdline:
+                return True
+    except (IOError, OSError):
+        pass
+    return False
 
-    subprocess.Popen(["/bin/bash", "-c", app+option])
-    # fix exception for Chrome (command = google-chrome-stable, but processname = chrome)
-    app = "chrome" if "chrome" in app else app
+def window_matches(w_id, app_name):
+    try:
+        w_class = get("xprop -id " + w_id + " WM_CLASS")
+        if app_name.lower() in w_class.lower():
+            return True
+    except Exception:
+        pass
+    return False
+
+def open_appwindow(app_name, loc):
+    ws1 = set(l.split()[0] for l in get("wmctrl -lp").splitlines() if l.strip())
+    # fix command for certain apps that open in new tab by default
+    option = " --new-window" if app_name == "gedit" else ""
+    # fix command if process name and command to run are different
+    cmd_app = app_name
+    if "gnome-terminal" in app_name:
+        cmd_app = "gnome-terminal"
+    elif "chrome" in app_name:
+        cmd_app = "/usr/bin/google-chrome-stable"
+
+    subprocess.Popen(["/bin/bash", "-c", cmd_app + option])
+    match_app = "chrome" if "chrome" in app_name else app_name
+
+    t = 0
     while t < 30:
-        ws2 = [w.split()[0:3] for w in get("wmctrl -lp").splitlines() if not w in ws1]
-        procs = [[(p, w[0]) for p in get("ps -e ww").splitlines() \
-                  if app in p and w[2] in p] for w in ws2]
-        if len(procs) > 0:
-            time.sleep(0.5)
-            w_id = procs[0][0][1]
-            reposition_window(w_id, loc)
-            break
         time.sleep(0.5)
-        t = t+1
+        t += 1
+        lines = [l.split() for l in get("wmctrl -lp").splitlines() if l.strip()]
+        new_windows = [w for w in lines if len(w) >= 3 and w[0] not in ws1]
+
+        matched_wid = None
+        for w in new_windows:
+            w_id, pid = w[0], w[2]
+            if proc_matches(pid, match_app) or window_matches(w_id, match_app):
+                if check_window(w_id):
+                    matched_wid = w_id
+                    break
+
+        if matched_wid:
+            time.sleep(0.5)
+            reposition_window(matched_wid, loc)
+            break
 
 def reposition_window(w_id, loc):
-    x,y,w,h,d = loc
-    cmds = list()
-    cmds.append("wmctrl -ir "+w_id+" -b remove,maximized_horz")
-    cmds.append("wmctrl -ir "+w_id+" -b remove,maximized_vert")
-    cmds.append("wmctrl -ir "+w_id+" -e 0,"+x+","+y+","+w+","+h)
-    cmds.append("wmctrl -ir "+w_id+" -t "+d)
-    for cmd in cmds:
-        subprocess.call(["/bin/bash", "-c", cmd])
+    x, y, w, h, d = [str(n) for n in loc]
+    subprocess.call(["wmctrl", "-ir", w_id, "-b", "remove,maximized_horz,maximized_vert"])
+    subprocess.call(["wmctrl", "-ir", w_id, "-e", "0," + x + "," + y + "," + w + "," + h])
+    subprocess.call(["wmctrl", "-ir", w_id, "-t", d])
 
 def run_remembered():
     global xof, yof
@@ -188,11 +223,11 @@ def do_calbration():
 def main():    
     if (len(sys.argv) < 1) :
         show_help()
-        exit(0)
+        sys.exit(0)
 
     if (len(sys.argv) == 1) :
         run_remembered()
-        exit(0)    
+        sys.exit(0)    
     arg = sys.argv[1]
     if (arg == "-load") :
         run_remembered()

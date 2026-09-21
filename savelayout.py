@@ -88,12 +88,15 @@ def read_calibration():
     global xof, yof
     try:
         with open(wfile, "r") as f:
-            lines = [l.split() for l in f.read().splitlines() if l.strip()]
-        if lines:
-            calibr = lines.pop()
-            if calibr[0] == 'calibration' and len(calibr) >= 3:
-                xof = int(calibr[1])
-                yof = int(calibr[2])
+            for line in f:
+                parts = line.strip().split()
+                if parts and parts[0] == 'calibration' and len(parts) >= 3:
+                    try:
+                        xof = int(parts[1])
+                        yof = int(parts[2])
+                    except ValueError:
+                        pass
+                    break
     except (IOError, OSError):
         pass
 
@@ -199,29 +202,33 @@ def run_remembered():
     res = get_viewport()
     running = read_window_ids()
     try:
+        window_lines = []
         with open(wfile, "r") as f:
-            lines = [l.split() for l in f.read().splitlines() if l.strip()]
-        if lines:
-            calibr = lines.pop()
-            if calibr[0] == 'calibration' and len(calibr) >= 3:
-                xof = int(calibr[1])
-                yof = int(calibr[2])
-            else:
-                lines.append(calibr)            
-            for l in lines:
-                if len(l) < 6:
+            for line in f:
+                parts = line.strip().split()
+                if not parts:
                     continue
-                l[2] = str(int(l[2]) - res[0])
-                l[3] = str(int(l[3]) - res[1])
-                apps = [a[0] for a in running]
-                location = l[2:6] + [l[1]]
-                states = l[6].split(",") if len(l) > 6 and l[6] != "none" else []
-                if l[0] in apps:
-                    idx = apps.index(l[0])
-                    reposition_window(running[idx][1], location, states)
-                    running.pop(idx)
-                else:
-                    open_appwindow(l[0], location, states)
+                if parts[0] == 'calibration' and len(parts) >= 3:
+                    try:
+                        xof = int(parts[1])
+                        yof = int(parts[2])
+                    except ValueError:
+                        pass
+                elif len(parts) >= 6:
+                    window_lines.append(parts)
+
+        for l in window_lines:
+            l[2] = str(int(l[2]) - res[0])
+            l[3] = str(int(l[3]) - res[1])
+            apps = [a[0] for a in running]
+            location = l[2:6] + [l[1]]
+            states = l[6].split(",") if len(l) > 6 and l[6] != "none" else []
+            if l[0] in apps:
+                idx = apps.index(l[0])
+                reposition_window(running[idx][1], location, states)
+                running.pop(idx)
+            else:
+                open_appwindow(l[0], location, states)
     except (IOError, OSError) as e:
         print("Error reading layout from " + wfile + ": " + str(e))
 

@@ -150,7 +150,14 @@ def open_appwindow(app_name, loc, states=None):
     elif "chrome" in app_name:
         cmd_app = "/usr/bin/google-chrome-stable"
 
-    subprocess.Popen(["/bin/bash", "-c", cmd_app + option])
+    cmd_str = cmd_app + option
+    try:
+        cmd_args = shlex.split(str(cmd_str))
+        subprocess.Popen(cmd_args)
+    except OSError as e:
+        print("Error launching " + cmd_app + ": " + str(e))
+        return
+
     match_app = "chrome" if "chrome" in app_name else app_name
 
     t = 0
@@ -185,6 +192,10 @@ def reposition_window(w_id, loc, states=None):
 
 def run_remembered():
     global xof, yof
+    if not os.path.isfile(wfile):
+        print("No saved layout found at " + wfile)
+        return
+
     res = get_viewport()
     running = read_window_ids()
     try:
@@ -211,8 +222,8 @@ def run_remembered():
                     running.pop(idx)
                 else:
                     open_appwindow(l[0], location, states)
-    except (IOError, OSError):
-        pass
+    except (IOError, OSError) as e:
+        print("Error reading layout from " + wfile + ": " + str(e))
 
 def start_calibration_window():
     calibw = subprocess.Popen(["xmessage", "-title", "savelayout_calib", "Calibration"])
@@ -281,6 +292,8 @@ def parse_arguments():
 
 def main():    
     args = parse_arguments()
+    if not os.environ.get("DISPLAY"):
+        sys.exit("Error: DISPLAY environment variable not set.")
     if args.save:
         read_calibration()
         wlist = read_windows()
